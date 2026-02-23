@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cognitive Fatigue Detection</title>
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+    <h2>Cognitive Fatigue Detection</h2>
+    <p>Type freely for 1 minute. After that, your cognitive state will be shown.</p>
+    <textarea id="typingArea" placeholder="Start typing here..."></textarea>
+    <div class="result">
+        <p id="status">Status: undefined</p>
+        
+    </div>
+</div>
+
+<script>
+const typingArea = document.getElementById("typingArea");
+
+let keyTimes = [];
+let lastKeyTime = null;
+let backspaceCount = 0;
+
+let mouseMovements = [];
+let lastMouseTime = null;
+let lastMousePos = null;
+
+const duration = 60; // seconds
+let startTime = null;
+
+typingArea.addEventListener("keydown", (e) => {
+    const currentTime = Date.now()/1000;
+    if (!startTime) startTime = currentTime;
+
+    if (lastKeyTime !== null) {
+        keyTimes.push(currentTime - lastKeyTime);
+    }
+    lastKeyTime = currentTime;
+
+    if (e.key === "Backspace") backspaceCount++;
+});
+
+document.addEventListener("mousemove", (e) => {
+    const currentTime = Date.now()/1000;
+    if (lastMousePos !== null) {
+        const dx = e.clientX - lastMousePos.x;
+        const dy = e.clientY - lastMousePos.y;
+        const distance = Math.sqrt(dx*dx + dy*dy);
+        if (lastMouseTime !== null) {
+            const dt = currentTime - lastMouseTime;
+            if (dt > 0) {
+                mouseMovements.push(distance / dt);
+            }
+        }
+    }
+    lastMouseTime = currentTime;
+    lastMousePos = {x: e.clientX, y: e.clientY};
+});
+
+const timer = setInterval(() => {
+    if (!startTime) return;
+    const elapsed = (Date.now()/1000 - startTime);
+    if (elapsed >= duration) {
+        clearInterval(timer);
+
+        // Compute features exactly like collect_fatigue_multi_fixed.py
+        const avgKeyInterval = keyTimes.length ? keyTimes.reduce((a,b)=>a+b,0)/keyTimes.length : 0;
+        const typingSpeed = keyTimes.length / duration * 60; // keys per min
+        const backspaceRate = backspaceCount / duration * 60;
+        const avgMouseSpeed = mouseMovements.length ? mouseMovements.reduce((a,b)=>a+b,0)/mouseMovements.length : 0;
+
+        // Update UI
+       
+
+        // Send features to backend for prediction
+        fetch("/predict", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                avg_key_interval: avgKeyInterval,
+                typing_speed: typingSpeed,
+                backspace_rate: backspaceRate,
+                avg_mouse_speed: avgMouseSpeed
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById("status").innerText = `Status: ${data.status}`;
+        })
+        .catch(err => console.error(err));
+    }
+}, 500);
+</script>
+</body>
+</html>
