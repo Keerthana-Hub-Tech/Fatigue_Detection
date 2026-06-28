@@ -49,7 +49,7 @@ These features are calculated in real-time in the browser and sent to the backen
 ##  Model Details
 
 * Algorithm: **Random Forest Classifier**
-* Accuracy (on dataset): **90%**
+* Accuracy (on dataset): **96%**
 * Model saved using: `pickle`
 * Input: 4 behavioral features
 * Output: Fatigue classification label
